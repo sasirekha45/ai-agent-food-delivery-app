@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BiteAgent • AI-Powered Food Delivery & Live Status Tracking</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              dark: '#0f172a'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- FontAwesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-white">
+
+  <!-- TOP PERSISTENT ACTIVE ORDER BANNER -->
+  <div id="active-order-banner" class="bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-700 text-white px-4 py-2.5 shadow-md flex items-center justify-between z-30 sticky top-0 transition-all">
+    <div class="max-w-7xl mx-auto w-full flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <span class="flex h-3 w-3 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+        </span>
+        <div class="text-xs sm:text-sm">
+          <span class="font-bold">Active Order <span id="banner-order-id">#FD-8492</span></span>:
+          <span class="text-emerald-100 font-medium" id="banner-restaurant">Trattoria Bella Napoli</span> •
+          <span class="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded text-xs font-semibold ml-1" id="banner-status">Out for Delivery</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <div class="text-xs bg-black/25 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-mono">
+          <i class="fa-solid fa-stopwatch text-emerald-300"></i>
+          <span>ETA: <strong id="banner-eta">7 mins</strong></span>
+        </div>
+        <button onclick="app.openTrackingModal()" class="text-xs bg-white text-emerald-800 hover:bg-emerald-50 font-bold px-3 py-1 rounded-full shadow transition-all active:scale-95 flex items-center gap-1">
+          <i class="fa-solid fa-location-dot text-emerald-600"></i>
+          <span>Live Map</span>
+        </button>
+        <button onclick="app.openChatDrawer()" class="text-xs bg-emerald-900/60 hover:bg-emerald-900 text-white font-semibold px-3 py-1 rounded-full border border-emerald-400/30 shadow transition-all active:scale-95 flex items-center gap-1">
+          <i class="fa-solid fa-robot text-emerald-300"></i>
+          <span>Ask AI</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN HEADER / NAVBAR -->
+  <header class="bg-white border-b border-gray-200 sticky top-11 z-20 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      
+      <!-- Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <i class="fa-solid fa-burger text-lg"></i>
+        </div>
+        <div>
+          <span class="text-xl font-black tracking-tight text-gray-900">Bite<span class="text-emerald-600">Agent</span></span>
+          <span class="hidden sm:inline-block ml-1.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">AI Delivery</span>
+        </div>
+      </div>
+
+      <!-- Address Selector -->
+      <div class="hidden md:flex items-center gap-2 bg-gray-50 border border-gray-200 hover:border-gray-300 px-3 py-1.5 rounded-full text-xs cursor-pointer transition">
+        <i class="fa-solid fa-location-dot text-emerald-600"></i>
+        <div class="text-left">
+          <span class="text-gray-400 block text-[9px] uppercase font-bold">Deliver To</span>
+          <span class="font-semibold text-gray-800">742 Evergreen Terr, Apt 4B</span>
+        </div>
+        <i class="fa-solid fa-chevron-down text-gray-400 text-[10px] ml-1"></i>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="flex-1 max-w-md hidden sm:block relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+        <input 
+          id="search-input" 
+          type="text" 
+          placeholder="Search restaurants, pizza, tacos, ramen..." 
+          class="w-full bg-gray-100 hover:bg-gray-50 focus:bg-white text-xs pl-9 pr-4 py-2.5 rounded-full border border-transparent focus:border-emerald-500 focus:outline-none transition-all shadow-inner"
+        >
+      </div>
+
+      <!-- Right Action Buttons -->
+      <div class="flex items-center gap-2.5">
+        <!-- AI Agent Toggle Button -->
+        <button onclick="app.toggleChatDrawer()" class="relative flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-3.5 py-2 rounded-full font-bold text-xs shadow-md shadow-emerald-500/20 hover:brightness-105 active:scale-95 transition-all">
+          <i class="fa-solid fa-robot text-emerald-200"></i>
+          <span>Ask BiteBot</span>
+          <span class="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span>
+        </button>
+
+        <!-- Cart Button -->
+        <button onclick="app.openCartModal()" class="relative w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition">
+          <i class="fa-solid fa-bag-shopping text-sm"></i>
+          <span id="cart-badge" class="absolute -top-1 -right-1 bg-emerald-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow hidden">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN BODY CONTENT -->
+  <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- HERO PROMO & AI FEATURE BANNER -->
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white p-6 sm:p-8 shadow-xl">
+      <div class="relative z-10 max-w-2xl space-y-3">
+        <div class="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-semibold text-emerald-300">
+          <i class="fa-solid fa-sparkles"></i>
+          <span>Autonomous AI Delivery Intelligence</span>
+        </div>
+        <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
+          Craving great food? <br>
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">Our AI Agent tracks every single mile.</span>
+        </h1>
+        <p class="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-lg">
+          Talk to <strong>BiteBot</strong> to check live delivery milestones, query bag temperatures, fast-forward simulation stages, or modify gate codes by voice!
+        </p>
+
+        <!-- Feature Chips -->
+        <div class="pt-2 flex flex-wrap gap-2 text-xs">
+          <span class="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+            <i class="fa-solid fa-map-location-dot text-emerald-400"></i> Live GPS Courier Map
+          </span>
+          <span class="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+            <i class="fa-solid fa-microphone text-teal-400"></i> Voice Speech Recognition
+          </span>
+          <span class="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+            <i class="fa-solid fa-temperature-three-quarters text-amber-400"></i> Thermal Bag Telemetry
+          </span>
+          <button onclick="app.openTrackingModal()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow transition">
+            <i class="fa-solid fa-play"></i> View Live Demo Order
+          </button>
+        </div>
+      </div>
+
+      <!-- Decorative Background Elements -->
+      <div class="absolute -right-10 -bottom-10 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute right-12 top-1/2 -translate-y-1/2 hidden lg:block opacity-85">
+        <div class="bg-white/10 backdrop-blur-xl p-4 rounded-2xl border border-white/10 shadow-2xl w-64 space-y-3">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div>
+              <p class="text-xs font-bold">BiteBot Status Engine</p>
+              <p class="text-[10px] text-emerald-300">Live Agent Connected</p>
+            </div>
+          </div>
+          <div class="bg-slate-900/70 p-2.5 rounded-xl text-[11px] text-slate-200 border border-slate-700">
+            "Courier Alex is 1.2 km away on Market St. Est. arrival: 7 mins."
+          </div>
+          <button onclick="app.openChatDrawer()" class="w-full text-center text-xs font-bold text-emerald-400 hover:underline">
+            Chat with BiteBot &rarr;
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CUISINE CATEGORIES SCROLLER -->
+    <div class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-gray-900">Explore Cuisines</h2>
+        <span class="text-xs text-gray-500">Pick what you crave today</span>
+      </div>
+      <div id="categories-container" class="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- RESTAURANTS & MENU GRID -->
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-gray-900">Featured Restaurants & Kitchens</h2>
+          <p class="text-xs text-gray-500">Fresh dishes prepared and delivered with live AI telemetry</p>
+        </div>
+        <div class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">
+          <i class="fa-solid fa-bolt mr-1"></i> Fast Delivery
+        </div>
+      </div>
+
+      <div id="restaurants-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== LIVE TRACKING MODAL ==================== -->
+  <div id="tracking-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 drawer-backdrop" onclick="app.closeTrackingModal()"></div>
+
+    <!-- Modal Box -->
+    <div class="relative bg-white w-full max-w-4xl max-h-[92vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 m-3 border border-gray-100">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-900 text-white">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center text-white text-base">
+            <i class="fa-solid fa-location-crosshairs"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="font-bold text-base leading-tight">Live Delivery Telemetry</h3>
+              <span id="track-order-id" class="text-xs bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded font-bold">#FD-8492</span>
+            </div>
+            <p class="text-xs text-slate-400" id="track-restaurant">Trattoria Bella Napoli</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Simulation controls -->
+          <div class="flex items-center bg-slate-800 rounded-lg p-1 text-xs gap-1">
+            <button onclick="app.prevStage()" class="px-2 py-1 hover:bg-slate-700 rounded text-slate-300" title="Previous Stage">
+              <i class="fa-solid fa-backward-step"></i>
+            </button>
+            <button onclick="app.nextStage()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded shadow" title="Advance Stage">
+              <i class="fa-solid fa-forward-step mr-1"></i>Next Stage
+            </button>
+            <button onclick="app.resetDemoOrder()" class="px-2 py-1 hover:bg-slate-700 rounded text-slate-300" title="Reset Demo">
+              <i class="fa-solid fa-rotate-right"></i>
+            </button>
+          </div>
+
+          <button onclick="app.closeTrackingModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="p-6 overflow-y-auto space-y-6 custom-scrollbar flex-1">
+        
+        <!-- Interactive Leaflet Map -->
+        <div class="relative rounded-2xl overflow-hidden border border-gray-200 shadow-inner h-64 sm:h-72">
+          <div id="map-container" class="w-full h-full"></div>
+          
+          <!-- Live Telemetry Floating Pill on Map -->
+          <div class="absolute top-3 left-3 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-lg border border-gray-100 z-[1000] flex items-center gap-3 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+              <div>
+                <span class="text-gray-400 block text-[9px] uppercase font-bold">Estimated Arrival</span>
+                <span class="font-bold text-gray-900 text-sm" id="track-eta-display">7 mins</span>
+              </div>
+            </div>
+            <div class="h-6 w-px bg-gray-200"></div>
+            <div>
+              <span class="text-gray-400 block text-[9px] uppercase font-bold">Distance</span>
+              <span class="font-bold text-emerald-600 text-sm" id="track-distance-display">1.2 km away</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress Steps Bar -->
+        <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+          <div class="mb-3 text-center">
+            <span class="text-xs uppercase font-extrabold tracking-wider text-emerald-600" id="track-status-heading">Out for Delivery</span>
+            <p class="text-xs text-gray-500" id="track-status-sub">Courier is zooming towards your address</p>
+          </div>
+          <div id="track-steps-bar" class="flex items-center justify-between relative">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- 2 Column: Driver Card & Delivery Details -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <!-- Driver Card -->
+          <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Assigned Courier</span>
+              <span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold">Verified Driver</span>
+            </div>
+            
+            <div class="flex items-center gap-3">
+              <img id="track-courier-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80" class="w-14 h-14 rounded-full object-cover ring-2 ring-emerald-500 shadow-sm" alt="Courier">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <h4 class="font-bold text-gray-900 text-base" id="track-courier-name">Alex Rivera</h4>
+                  <span class="text-xs font-bold text-amber-500 flex items-center gap-0.5">
+                    <i class="fa-solid fa-star text-[10px]"></i><span id="track-courier-rating">4.96 ★</span>
+                  </span>
+                </div>
+                <p class="text-xs text-gray-500" id="track-courier-vehicle">Electric SuperSoco Scooter</p>
+              </div>
+            </div>
+
+            <!-- Bag Temperature -->
+            <div class="bg-amber-50 border border-amber-200/60 p-2.5 rounded-xl flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2 text-amber-800">
+                <i class="fa-solid fa-temperature-arrow-up text-amber-600"></i>
+                <span class="font-medium">Thermal Bag Sensor:</span>
+              </div>
+              <span class="font-bold text-amber-900" id="track-courier-temp">68°C (Optimal Heat Retention)</span>
+            </div>
+
+            <!-- Driver Actions -->
+            <div class="flex gap-2">
+              <button onclick="app.openChatDrawer(); app.sendChatMessage('Connect me with courier Alex')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
+                <i class="fa-solid fa-message text-emerald-600"></i> Message Courier
+              </button>
+              <button onclick="alert('Calling courier Alex Rivera at +1 (555) 382-9011 (Simulated Call)...')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition shadow">
+                <i class="fa-solid fa-phone"></i> Call Courier
+              </button>
+            </div>
+          </div>
+
+          <!-- Destination & Notes -->
+          <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Drop-off Details</span>
+
+            <div class="space-y-2 text-xs">
+              <div class="flex items-start gap-2">
+                <i class="fa-solid fa-location-dot text-emerald-600 mt-0.5"></i>
+                <div>
+                  <span class="text-gray-400 block text-[10px]">Delivery Address</span>
+                  <span class="font-bold text-gray-800" id="track-address">742 Evergreen Terrace, Apt 4B</span>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-2">
+                <i class="fa-solid fa-key text-indigo-600 mt-0.5"></i>
+                <div>
+                  <span class="text-gray-400 block text-[10px]">Gate / Access Code</span>
+                  <span class="font-bold text-gray-800" id="track-gate-code">#4092</span>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-2">
+                <i class="fa-solid fa-comment-dots text-teal-600 mt-0.5"></i>
+                <div>
+                  <span class="text-gray-400 block text-[10px]">Special Instructions</span>
+                  <span class="text-gray-600" id="track-instructions">Please leave on porch table and ring bell.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Agent Action Button -->
+            <div class="pt-2 border-t border-gray-100">
+              <button onclick="app.closeTrackingModal(); app.openChatDrawer();" class="w-full bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 border border-emerald-200 text-emerald-800 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition">
+                <i class="fa-solid fa-robot text-emerald-600"></i>
+                <span>Ask BiteBot to Update Delivery Notes</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Live Activity Timeline -->
+        <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Live Milestone Log</span>
+          <div id="track-timeline-list" class="space-y-3 pl-1">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+        <span>Continuous GPS ping via BiteAgent Mesh Telemetry</span>
+        <button onclick="app.closeTrackingModal()" class="text-gray-700 font-bold hover:text-gray-900">
+          Close Window
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== AI AGENT CHAT DRAWER ==================== -->
+  <div id="chat-drawer" class="fixed top-0 right-0 h-full w-full sm:w-[440px] bg-white shadow-2xl z-50 flex flex-col transform translate-x-full transition-transform duration-300 ease-in-out border-l border-gray-200">
+    
+    <!-- Drawer Header -->
+    <div class="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+            <i class="fa-solid fa-robot text-lg"></i>
+          </div>
+          <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-slate-900"></span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="font-bold text-sm">BiteBot Assistant</h3>
+            <span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold">ONLINE</span>
+          </div>
+          <p class="text-[11px] text-slate-400">Order Status & Delivery Intelligence</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Voice Speech Audio Output Toggle -->
+        <button id="voice-speech-toggle" onclick="app.toggleVoiceSpeech()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition" title="Voice Response: ON">
+          <i class="fa-solid fa-volume-high text-emerald-400 text-xs"></i>
+        </button>
+        <!-- Close Drawer -->
+        <button onclick="app.closeChatDrawer()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Order Context Pill in Chat -->
+    <div class="bg-emerald-50 border-b border-emerald-100 px-4 py-2 flex items-center justify-between text-xs">
+      <div class="flex items-center gap-2 text-emerald-900">
+        <i class="fa-solid fa-motorcycle text-emerald-600"></i>
+        <span>Tracking: <strong id="chat-context-order">#FD-8492</strong></span>
+      </div>
+      <button onclick="app.openTrackingModal()" class="text-[11px] font-bold text-emerald-700 hover:underline">
+        Open Map &rarr;
+      </button>
+    </div>
+
+    <!-- Chat Messages Scroll Container -->
+    <div id="chat-messages-container" class="flex-1 p-4 overflow-y-auto custom-scrollbar bg-slate-50/50">
+      <!-- Rendered by JS -->
+    </div>
+
+    <!-- Typing Indicator -->
+    <div id="agent-typing-indicator" class="px-5 py-2 text-xs text-gray-500 items-center gap-2 hidden bg-slate-50/50">
+      <div class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">
+        <i class="fa-solid fa-robot"></i>
+      </div>
+      <div class="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-full shadow-sm">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:0.2s]"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:0.4s]"></span>
+        <span class="text-[11px] text-gray-500 ml-1">BiteBot is checking status...</span>
+      </div>
+    </div>
+
+    <!-- Quick Action Chips -->
+    <div class="px-3 py-2 bg-white border-t border-gray-100 flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
+      <button onclick="app.sendChatMessage('Where is my food right now?')" class="text-[11px] font-medium bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 border border-gray-200 px-2.5 py-1 rounded-full whitespace-nowrap transition">
+        📍 Where is my food?
+      </button>
+      <button onclick="app.sendChatMessage('When will my order arrive?')" class="text-[11px] font-medium bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 border border-gray-200 px-2.5 py-1 rounded-full whitespace-nowrap transition">
+        ⏱️ Exact ETA
+      </button>
+      <button onclick="app.sendChatMessage('Who is my delivery driver?')" class="text-[11px] font-medium bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 border border-gray-200 px-2.5 py-1 rounded-full whitespace-nowrap transition">
+        🛵 Courier Profile
+      </button>
+      <button onclick="app.sendChatMessage('Is my food hot and fresh?')" class="text-[11px] font-medium bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 border border-gray-200 px-2.5 py-1 rounded-full whitespace-nowrap transition">
+        ♨️ Bag Temp
+      </button>
+      <button onclick="app.sendChatMessage('Fast-forward to next stage')" class="text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full whitespace-nowrap transition">
+        ⏩ Next Stage
+      </button>
+    </div>
+
+    <!-- Input Form -->
+    <div class="p-3 bg-white border-t border-gray-200">
+      <form id="chat-form" class="flex items-center gap-2">
+        <!-- Voice Input Mic Button -->
+        <button type="button" id="chat-mic-btn" onclick="app.agent.toggleVoiceInput()" class="w-10 h-10 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition flex-shrink-0" title="Click to speak your question">
+          <i class="fa-solid fa-microphone text-sm"></i>
+        </button>
+
+        <!-- Text Input -->
+        <input 
+          id="chat-input" 
+          type="text" 
+          placeholder="Ask where your order is, ETA, or speak..." 
+          class="flex-1 bg-gray-100 focus:bg-white text-xs px-3.5 py-2.5 rounded-full border border-gray-200 focus:border-emerald-500 focus:outline-none transition"
+        >
+
+        <!-- Send Button -->
+        <button type="submit" class="w-10 h-10 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center transition shadow-md shadow-emerald-500/20 flex-shrink-0">
+          <i class="fa-solid fa-paper-plane text-xs"></i>
+        </button>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- ==================== CART MODAL ==================== -->
+  <div id="cart-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+    <div class="absolute inset-0 drawer-backdrop" onclick="app.closeCartModal()"></div>
+
+    <div class="relative bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 m-4 border border-gray-100 max-h-[85vh]">
+      
+      <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-900 text-white">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-bag-shopping text-emerald-400"></i>
+          <h3 class="font-bold text-sm">Your Food Basket</h3>
+        </div>
+        <button onclick="app.closeCartModal()" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+        <!-- Empty State -->
+        <div id="cart-empty-state" class="text-center py-10 hidden">
+          <i class="fa-solid fa-basket-shopping text-4xl text-gray-300 mb-2"></i>
+          <p class="text-sm font-bold text-gray-600">Your basket is empty</p>
+          <p class="text-xs text-gray-400 mt-1">Browse restaurants and add delicious meals!</p>
+        </div>
+
+        <!-- Items list -->
+        <div id="cart-items-list" class="space-y-2.5">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Bill Breakdown -->
+        <div id="cart-summary-section" class="bg-gray-50 p-3.5 rounded-2xl border border-gray-100 space-y-2 text-xs">
+          <div class="flex justify-between text-gray-600">
+            <span>Subtotal</span>
+            <span id="cart-subtotal" class="font-semibold">$0.00</span>
+          </div>
+          <div class="flex justify-between text-gray-600">
+            <span>Delivery Fee</span>
+            <span id="cart-delivery" class="font-semibold">$2.49</span>
+          </div>
+          <div class="flex justify-between text-gray-600">
+            <span>Taxes & Estimated Fees</span>
+            <span id="cart-tax" class="font-semibold">$0.00</span>
+          </div>
+          <div class="flex justify-between text-gray-600">
+            <span>Courier Tip</span>
+            <span id="cart-tip" class="font-semibold">$4.00</span>
+          </div>
+          <div class="pt-2 border-t border-gray-200 flex justify-between text-sm font-bold text-gray-900">
+            <span>Total</span>
+            <span id="cart-total" class="text-emerald-600">$0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 bg-gray-50 border-t border-gray-100">
+        <button id="cart-checkout-btn" onclick="app.checkout()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/25 transition disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2">
+          <span>Place Order with Live AI Telemetry</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FLOATING PERSISTENT AI AGENT BUTTON -->
+  <div class="fixed bottom-6 right-6 z-40">
+    <button onclick="app.toggleChatDrawer()" class="group relative flex items-center gap-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-4 py-3 rounded-full shadow-2xl shadow-emerald-600/40 transition-all duration-300 hover:scale-105 active:scale-95">
+      <div class="relative flex items-center justify-center">
+        <i class="fa-solid fa-robot text-lg"></i>
+        <span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-300 ring-2 ring-white animate-pulse"></span>
+      </div>
+      <div class="text-left hidden sm:block">
+        <span class="text-[10px] text-emerald-200 uppercase font-extrabold tracking-wider block leading-none">AI Dispatcher</span>
+        <span class="text-xs font-bold leading-tight">Ask BiteBot</span>
+      </div>
+    </button>
+  </div>
+
+  <!-- SCRIPTS -->
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- App Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/agent.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

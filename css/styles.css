@@ -1,0 +1,165 @@
+/* Custom Styles & Modern Micro-interactions for AI Food Delivery App */
+
+:root {
+  --primary: #10b981;
+  --primary-dark: #059669;
+  --accent: #f97316;
+  --dark: #0f172a;
+}
+
+/* Glassmorphism Accents */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.glass-panel-dark {
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+/* Custom Scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Sound Wave Animation for AI Agent */
+.sound-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+}
+.sound-bar {
+  width: 3px;
+  background-color: #10b981;
+  border-radius: 2px;
+  animation: soundWave 1.2s infinite ease-in-out;
+}
+.sound-bar:nth-child(1) { height: 8px; animation-delay: 0.1s; }
+.sound-bar:nth-child(2) { height: 16px; animation-delay: 0.3s; }
+.sound-bar:nth-child(3) { height: 22px; animation-delay: 0.2s; }
+.sound-bar:nth-child(4) { height: 12px; animation-delay: 0.4s; }
+.sound-bar:nth-child(5) { height: 6px; animation-delay: 0.15s; }
+
+@keyframes soundWave {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1.3); }
+}
+
+/* Voice Mic Pulse */
+.mic-listening {
+  animation: micPulse 1.4s infinite;
+}
+
+@keyframes micPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* Live Pulse Ring */
+.pulse-ring {
+  position: relative;
+}
+.pulse-ring::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: pulseBeacon 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background-color: inherit;
+  opacity: 0.6;
+  z-index: 0;
+}
+
+@keyframes pulseBeacon {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.4);
+    opacity: 0;
+  }
+}
+
+/* Leaflet Map overrides */
+.leaflet-container {
+  font-family: inherit;
+  z-index: 1;
+}
+
+.custom-leaflet-icon {
+  background: transparent;
+  border: none;
+}
+
+/* Chat bubble formatting */
+.chat-bubble-agent {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-top-left-radius: 4px;
+}
+
+.chat-bubble-user {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-top-right-radius: 4px;
+}
+
+/* Card hover transitions */
+.hover-lift {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.12);
+}
+
+/* Modal and Drawers */
+.drawer-backdrop {
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  transition: opacity 0.3s ease;
+}
+
+/* Status Step Connector lines */
+.step-line {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  height: 3px;
+  width: 100%;
+  background: #e2e8f0;
+  z-index: 0;
+}
+
+.step-line-active {
+  background: #10b981;
+}
